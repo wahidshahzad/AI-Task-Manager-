@@ -1,0 +1,159 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { motion } from "framer-motion";
+import Draggable from "react-draggable";
+
+export default function TaskManager() {
+  const [tasks, setTasks] = useState([]);
+  const [taskInput, setTaskInput] = useState("");
+  const [notes, setNotes] = useState([]);
+  const [noteInput, setNoteInput] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
+  const [archivedTasks, setArchivedTasks] = useState([]);
+
+  useEffect(() => {
+    const storedTasks = JSON.parse(localStorage.getItem("tasks")) || [];
+    const storedNotes = JSON.parse(localStorage.getItem("notes")) || [];
+    const storedArchivedTasks = JSON.parse(localStorage.getItem("archivedTasks")) || [];
+    setTasks(storedTasks);
+    setNotes(storedNotes);
+    setArchivedTasks(storedArchivedTasks);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+    localStorage.setItem("notes", JSON.stringify(notes));
+    localStorage.setItem("archivedTasks", JSON.stringify(archivedTasks));
+  }, [tasks, notes, archivedTasks]);
+
+  const addTask = () => {
+    if (taskInput.trim() === "") return;
+    const newTask = {
+      id: Date.now(),
+      text: taskInput,
+      completed: false,
+      progress: 0,
+    };
+    setTasks((prevTasks) => [...prevTasks, newTask]);
+    setTaskInput("");
+  };
+
+  const updateProgress = (id, progress) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === id ? { ...task, progress, completed: progress === 100 } : task
+      )
+    );
+  };
+
+  const addNote = () => {
+    if (noteInput.trim() === "") return;
+    const newNote = {
+      id: Date.now(),
+      text: noteInput,
+    };
+    setNotes((prevNotes) => [...prevNotes, newNote]);
+    setNoteInput("");
+  };
+
+  const archiveTask = (id) => {
+    setTasks((prevTasks) => {
+      const taskToArchive = prevTasks.find((task) => task.id === id);
+      if (taskToArchive) {
+        setArchivedTasks((prevArchived) => [...prevArchived, taskToArchive]);
+      }
+      return prevTasks.filter((task) => task.id !== id);
+    });
+  };
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+
+  return (
+    <div className={`p-6 max-w-lg mx-auto relative ${darkMode ? "bg-gray-900 text-white" : ""}`}>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">AI Smart Task Manager</h1>
+        <Button onClick={toggleDarkMode}>{darkMode ? "Light Mode" : "Dark Mode"}</Button>
+      </div>
+      
+      {/* Draggable Sticky Notes Section */}
+      <Draggable>
+        <div className="absolute top-4 left-4 bg-yellow-200 p-4 rounded-lg shadow-lg w-60 cursor-move">
+          <h2 className="text-lg font-bold mb-2">Sticky Notes</h2>
+          <div className="flex gap-2 mb-4">
+            <Input
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value)}
+              placeholder="Enter a note..."
+            />
+            <Button onClick={addNote}>Add</Button>
+          </div>
+          <div className="space-y-2">
+            {notes.map((note) => (
+              <motion.div
+                key={note.id}
+                className="p-2 bg-yellow-300 rounded shadow"
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+              >
+                {note.text}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </Draggable>
+
+      <div className="flex gap-2 mb-4">
+        <Input
+          value={taskInput}
+          onChange={(e) => setTaskInput(e.target.value)}
+          placeholder="Enter a task..."
+        />
+        <Button onClick={addTask}>Add Task</Button>
+      </div>
+      <div className="space-y-4">
+        {tasks.map((task) => (
+          <motion.div
+            key={task.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Card>
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className={task.completed ? "line-through text-gray-400" : ""}>
+                    {task.text}
+                  </p>
+                  <Progress value={task.progress} className="w-full mt-2" />
+                  <select
+                    className="w-full mt-2 p-2 border rounded"
+                    value={task.progress}
+                    onChange={(e) => updateProgress(task.id, Number(e.target.value))}
+                  >
+                    {[...Array(11)].map((_, i) => (
+                      <option key={i} value={i * 10}>{i * 10}% Completed</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={task.completed ? "outline" : "default"}
+                    onClick={() => updateProgress(task.id, task.completed ? 0 : 100)}
+                  >
+                    {task.completed ? "Undo" : "Complete"}
+                  </Button>
+                  <Button variant="outline" onClick={() => archiveTask(task.id)}>Archive</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
